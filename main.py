@@ -142,9 +142,8 @@ st.markdown("")
 # ═══════════════════════════════════════════════════════════════════════════════
 if MODE == "Dashboard":
     section_label("Geospatial Distribution")
-    map_col, info_col = st.columns([3, 1])
 
-    with map_col:
+    with st.container():
         fmap = folium.Map(location=[fdf["lat"].mean(), fdf["lon"].mean()],
                           zoom_start=11, tiles="CartoDB positron")
         path_ids = [s for s in ["S1","S2","S3","S4","S5","S6","S7","S8"]
@@ -179,28 +178,8 @@ if MODE == "Dashboard":
                 fill=True, fill_opacity=0.75,
             ).add_to(fmap)
 
-        st_folium(fmap, height=460, use_container_width=True)
-        st.caption("Blue = safe · Orange = HBRA (> 370 Bq/kg) · Red = critical. Click any marker for details.")
-
-    with info_col:
-        section_label("Station Inspector")
-        sel    = st.selectbox("", fdf["station"], label_visibility="collapsed")
-        row    = fdf[fdf["station"] == sel].iloc[0]
-        rl, rc = risk_label(row["ra_eq"])
-        badge(rc, rl)
-        st.markdown("")
-        detail_html = "".join([
-            detail_row("Geology",   row["geology"]),
-            detail_row("Monazite",  f"{row['monazite']:.2f} %"),
-            detail_row("A-Th",      f"{row['a_th']:.2f} Bq/kg"),
-            detail_row("A-U",       f"{row['a_u']:.2f} Bq/kg"),
-            detail_row("Dose",      f"{row['dose_ngy']:.2f} nGy/h"),
-            detail_row("Gamma",     f"{row['gamma']:.6f} µSv/h"),
-            detail_row("Ra-eq",     f"{row['ra_eq']:.2f} Bq/kg"),
-            detail_row("AED",       f"{row['aed']:.4f} µSv/yr"),
-            detail_row("ELCR",      f"{row['elcr']:.3e}"),
-        ])
-        st.markdown(f'<div class="stat-card">{detail_html}</div>', unsafe_allow_html=True)
+        st_folium(fmap, height=500, use_container_width=True)
+        st.markdown('<p style="font-size:15px;color:#5f6368;margin-top:6px">Marker colour: Blue = safe &nbsp;·&nbsp; Orange = HBRA (Ra-eq &gt; 370 Bq/kg) &nbsp;·&nbsp; Red = critical (&gt; 740 Bq/kg). Click any marker for full details.</p>', unsafe_allow_html=True)
 
     section_label("Analysis")
     t1, t2, t3, t4 = st.tabs(["Radiation Profile","Risk Correlation",
@@ -221,16 +200,61 @@ if MODE == "Dashboard":
         st.plotly_chart(fig, use_container_width=True)
 
     with t2:
-        fig = px.scatter(fdf, x="monazite", y="ra_eq", size="gamma", size_max=20,
-                         color="ra_eq", color_continuous_scale="RdYlGn_r",
-                         text="id", hover_name="station",
-                         labels={"monazite":"Monazite (%)","ra_eq":"Ra-eq (Bq/kg)"},
-                         title="Monazite % vs Radium Equivalent Activity")
-        fig.add_hline(y=HBRA_THRESHOLD, line_dash="dash", line_color=DANGER_COL,
-                      annotation_text="HBRA threshold (370 Bq/kg)")
-        fig.update_traces(textposition="top center")
-        fig.update_layout(**chart_layout(height=420))
-        st.plotly_chart(fig, use_container_width=True)
+        # Build traces individually so each point gets alternating text position
+        # preventing overlap of closely positioned stations (e.g. S3/S10)
+        fig_sc = go.Figure()
+        positions = ["top center","bottom center","top right","bottom left",
+                     "top left","bottom right","top center","bottom center",
+                     "top right","bottom left"]
+        for i, (_, row_s) in enumerate(fdf.sort_values("monazite").reset_index(drop=True).iterrows()):
+            rc_s = risk_label(row_s["ra_eq"])[1]
+            dot_c = {"danger": DANGER_COL, "warning": WARN_COL, "success": SUCCESS_COL}[rc_s]
+            fig_sc.add_trace(go.Scatter(
+                x=[row_s["monazite"]], y=[row_s["ra_eq"]],
+                mode="markers+text", text=[row_s["id"]],
+                textposition=positions[i % len(positions)],
+                textfont=dict(size=13, color="#202124"),
+                marker=dict(size=max(8, row_s["gamma"]*40+8), color=dot_c, opacity=0.85,
+                            line=dict(width=1.5, color="white")),
+                hovertemplate=(f"<b>{row_s['station']}</b><br>"
+                               f"Monazite: {row_s['monazite']:.2f}%<br>"
+                               f"Ra-eq: {row_s['ra_eq']:.1f} Bq/kg<br>"
+                               f"Gamma: {row_s['gamma']:.5f} µSv/h<extra></extra>"),
+                showlegend=False,
+            ))
+        fig_sc.add_hline(y=HBRA_THRESHOLD, line_dash="dash", line_color=DANGER_COL,
+                         annotation_text="HBRA threshold (370 Bq/kg)",
+                         annotation_font_color=DANGER_COL)
+        fig_sc.update_layout(**chart_layout(
+            title="Monazite % vs Radium Equivalent Activity",
+            xaxis={"title":"Monazite (%)"}, yaxis={"title":"Ra-eq (Bq/kg)"}, height=460))
+        st.plotly_chart(fig_sc, use_container_width=True)
+
+        # Cancer risk contextual information
+        st.markdown("""
+<div style="background:#fff8e1;border-left:4px solid #f9ab00;border-radius:8px;
+            padding:18px 22px;margin:12px 0">
+  <div style="font-size:16px;font-weight:600;color:#5f4700;margin-bottom:10px">
+    Radioactivity and Cancer Risk — What do these numbers mean?
+  </div>
+  <div style="font-size:15px;color:#5f6368;line-height:1.7">
+    <strong style="color:#202124">Radium Equivalent (Ra-eq)</strong> measures the combined
+    external gamma radiation hazard from all three natural radionuclides (Th-232, U-238, K-40).
+    Values below <strong>370 Bq/kg</strong> are considered safe by IAEA; values between
+    370–740 Bq/kg are classified as High Background Natural Radiation Areas (HBRA).
+    <br><br>
+    <strong style="color:#202124">Excess Lifetime Cancer Risk (ELCR)</strong> estimates the
+    additional probability of developing cancer due to gamma radiation exposure over a 70-year
+    lifetime. The WHO acceptable threshold is <strong>1 × 10⁻⁵</strong> (1 extra case per
+    100,000 people). All stations in this study fall below this threshold, indicating that
+    soil-pathway radiation alone does not pose an unacceptable cancer risk.
+    <br><br>
+    <strong style="color:#c5221f">Station S7 (Parakanni)</strong> is the only HBRA site in this
+    corridor, with Ra-eq = 716.7 Bq/kg driven by its high monazite content (0.62%).
+    Long-term residents and agricultural workers near this zone should be considered for
+    periodic radiation monitoring as part of precautionary public health practice.
+  </div>
+</div>""", unsafe_allow_html=True)
 
     with t3:
         melt = fdf[["station","a_th","a_u","k40"]].melt(
@@ -716,6 +740,9 @@ else:
             "and Indian Ocean."
         )
 
+
+# ── Author credit ────────────────────────────────────────────────────────────
+st.markdown('<div class="author-credit">Abinesh R</div>', unsafe_allow_html=True)
 
 # ── Full Results Table — HTML table, always visible ─────────────────────────
 with st.expander("Full Results Table", expanded=False):
