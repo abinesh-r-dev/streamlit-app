@@ -121,26 +121,25 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── KPI row ────────────────────────────────────────────────────────────────────
-section_label("Basin Summary")
-k1, k2, k3, k4, k5 = st.columns(5)
-hbra_n  = int((fdf["ra_eq"] > HBRA_THRESHOLD).sum())
-max_idx = fdf["gamma"].idxmax()
-for col, lbl, val, sub in [
-    (k1, "Max Gamma",  f"{fdf['gamma'].max():.4f} µSv/h", fdf.loc[max_idx,"station"]),
-    (k2, "Max Ra-eq",  f"{fdf['ra_eq'].max():.1f} Bq/kg", "HBRA > 370"),
-    (k3, "Mean Ra-eq", f"{fdf['ra_eq'].mean():.1f} Bq/kg","Basin average"),
-    (k4, "HBRA Sites", f"{hbra_n} / {len(fdf)}",          "Exceeds threshold"),
-    (k5, "Max ELCR",   f"{fdf['elcr'].max():.2e}",         "WHO limit < 1e-5"),
-]:
-    stat_card(lbl, val, sub, col)
-st.markdown("")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # DASHBOARD
 # ═══════════════════════════════════════════════════════════════════════════════
 if MODE == "Dashboard":
+    section_label("Basin Summary")
+    k1, k2, k3, k4, k5 = st.columns(5)
+    hbra_n  = int((fdf["ra_eq"] > HBRA_THRESHOLD).sum())
+    max_idx = fdf["gamma"].idxmax()
+    for col, lbl, val, sub in [
+        (k1, "Max Gamma",  f"{fdf['gamma'].max():.4f} µSv/h", fdf.loc[max_idx,'station']),
+        (k2, "Max Ra-eq",  f"{fdf['ra_eq'].max():.1f} Bq/kg", "HBRA > 370"),
+        (k3, "Mean Ra-eq", f"{fdf['ra_eq'].mean():.1f} Bq/kg", "Basin average"),
+        (k4, "HBRA Sites", f"{hbra_n} / {len(fdf)}",           "Exceeds threshold"),
+        (k5, "Max ELCR",   f"{fdf['elcr'].max():.2e}",          "WHO limit < 1e-5"),
+    ]:
+        stat_card(lbl, val, sub, col)
+    st.markdown("")
     section_label("Geospatial Distribution")
 
     with st.container():
@@ -302,8 +301,14 @@ if MODE == "Dashboard":
 # LIVE CALCULATOR
 # ═══════════════════════════════════════════════════════════════════════════════
 elif MODE == "Live Calculator":
+    st.markdown("""
+<div style='background:#e8f5e9;border-left:4px solid #137333;border-radius:8px;padding:18px 22px;margin-bottom:20px'>
+  <div style='font-size:20px;font-weight:700;color:#0d3d1f;margin-bottom:8px'>Live Stoichiometric Calculator</div>
+  <div style='font-size:16px;color:#2e5e3b;line-height:1.7'>
+    This calculator implements the <strong>UNSCEAR 1988 five-step stoichiometric framework</strong> to compute seven radiological health parameters directly from monazite percentage. It is intended for rapid what-if analysis — adjust the monazite %, K-40 activity, or occupancy factor and every output updates instantly without reloading. Use it to understand how small changes in mineral content translate to changes in absorbed dose, Radium Equivalent, and lifetime cancer risk at any location along the river corridor.
+  </div>
+</div>""", unsafe_allow_html=True)
     section_label("Stoichiometric Calculator — UNSCEAR 1988")
-    st.caption("All outputs update in real time as you adjust the sliders.")
 
     c1, c2, c3 = st.columns(3)
     mon = c1.slider("Monazite (%)", 0.00, 2.00, 0.50, 0.01)
@@ -387,9 +392,14 @@ elif MODE == "Live Calculator":
 # REGRESSION ANALYSIS
 # ═══════════════════════════════════════════════════════════════════════════════
 elif MODE == "Regression Analysis":
+    st.markdown("""
+<div style='background:#e8f0fe;border-left:4px solid #1a73e8;border-radius:8px;padding:18px 22px;margin-bottom:20px'>
+  <div style='font-size:20px;font-weight:700;color:#0d2b6b;margin-bottom:8px'>Regression Analysis</div>
+  <div style='font-size:16px;color:#1a3a70;line-height:1.7'>
+    When full mineralogical analysis from an accredited laboratory is unavailable, radiometric proxies such as Radium Equivalent, absorbed dose rate, or effective gamma radiation can be used to <strong>estimate Monazite % via linear regression</strong>. This section fits Ordinary Least Squares (OLS), Ridge, and Lasso regression models against the 10-station dataset. Because all three predictors are deterministic linear functions of Monazite % within the stoichiometric model, R² = 1.0 is expected and serves as an internal consistency check — confirming the mathematical pipeline is self-consistent before applying it to new, unmeasured sites.
+  </div>
+</div>""", unsafe_allow_html=True)
     section_label("Predictive Regression — Monazite % from Radiometric Proxies")
-    st.caption("Ra-eq, dose rate, and gamma are deterministic linear functions of Monazite % in "
-               "the stoichiometric model, so R² = 1.0 confirms internal consistency.")
 
     ctrl1, ctrl2 = st.columns(2)
     xcol_choice = ctrl1.selectbox("Predictor variable", ["ra_eq","dose_ngy","gamma"],
@@ -451,6 +461,13 @@ elif MODE == "Regression Analysis":
 # ML PREDICTION
 # ═══════════════════════════════════════════════════════════════════════════════
 elif MODE == "ML Prediction":
+    st.markdown("""
+<div style='background:#fef7e0;border-left:4px solid #f9ab00;border-radius:8px;padding:18px 22px;margin-bottom:20px'>
+  <div style='font-size:20px;font-weight:700;color:#5f3d00;margin-bottom:8px'>Machine Learning — Monazite % Prediction</div>
+  <div style='font-size:16px;color:#6b4400;line-height:1.7'>
+    Direct mineralogical analysis requires NABL-accredited laboratory testing, which is time-consuming and expensive. This module trains <strong>Random Forest, Gradient Boosting, and K-Nearest Neighbour</strong> regression models to predict Monazite % from cheaper proxy measurements such as XRF mineral composition surveys. Because only 10 real samples exist, a <strong>Gaussian-noise data augmentation</strong> strategy (with Mix-up blending) generates a 150-sample training dataset. Model performance is evaluated using <strong>Leave-One-Out cross-validation</strong> on the original 10 stations to give an unbiased estimate of generalisation accuracy. A 90% bootstrap confidence interval is also available for individual predictions.
+  </div>
+</div>""", unsafe_allow_html=True)
     section_label("Machine Learning — Monazite % Prediction")
 
     with st.sidebar:
@@ -615,9 +632,14 @@ elif MODE == "ML Prediction":
 # SPATIAL HEATMAP
 # ═══════════════════════════════════════════════════════════════════════════════
 elif MODE == "Spatial Heatmap":
+    st.markdown("""
+<div style='background:#fce8e6;border-left:4px solid #c5221f;border-radius:8px;padding:18px 22px;margin-bottom:20px'>
+  <div style='font-size:20px;font-weight:700;color:#5c1010;margin-bottom:8px'>Spatial Radioactivity Heatmap</div>
+  <div style='font-size:16px;color:#6b1414;line-height:1.7'>
+    This view visualises the spatial distribution of <strong>Radium Equivalent Activity</strong> across the Thamirabarani basin by interpolating the 10 measured station values onto a continuous grid using a <strong>Radial Basis Function (RBF) thin-plate spline</strong>. The heatmap highlights spatial gradients — showing how radiation intensity rises as the river approaches the monazite-rich coastal formations near Parakanni and Vayakalloor. The green-to-red colour scale maps directly to IAEA risk zones. Note: the grid is interpolated, not measured — it should not be used for regulatory decisions beyond the sampled corridor.
+  </div>
+</div>""", unsafe_allow_html=True)
     section_label("Spatial Ra-eq Interpolation — RBF Thin-Plate Spline")
-    st.caption("Grid interpolates the 10 station measurements. "
-               "Not suitable for extrapolation beyond the sampled corridor.")
     res_val = st.slider("Grid resolution", 20, 80, 45, 5)
     with st.spinner("Interpolating grid…"):
         sg = spatial_grid(occ_factor, res_val)
@@ -647,6 +669,13 @@ elif MODE == "Spatial Heatmap":
 # REFERENCE
 # ═══════════════════════════════════════════════════════════════════════════════
 else:
+    st.markdown("""
+<div style='background:#f3e8ff;border-left:4px solid #7c3aed;border-radius:8px;padding:18px 22px;margin-bottom:20px'>
+  <div style='font-size:20px;font-weight:700;color:#3b1a6e;margin-bottom:8px'>Formula and Standards Reference</div>
+  <div style='font-size:16px;color:#4a2080;line-height:1.7'>
+    A complete reference for the physics formulas, machine learning algorithms, regulatory thresholds, and environmental data sources used throughout this study. Use this section to verify any calculation, understand the basis of a risk classification, or find further reading on radioactivity in South Indian coastal environments.
+  </div>
+</div>""", unsafe_allow_html=True)
     section_label("Formula and Standards Reference")
     rf1, rf2, rf3, rf4 = st.tabs(["UNSCEAR 1988 Pipeline","ML Algorithms",
                                    "Regulatory Standards","Environmental Resources"])
@@ -740,9 +769,6 @@ else:
             "and Indian Ocean."
         )
 
-
-# ── Author credit ────────────────────────────────────────────────────────────
-st.markdown('<div class="author-credit">Abinesh R</div>', unsafe_allow_html=True)
 
 # ── Full Results Table — HTML table, always visible ─────────────────────────
 with st.expander("Full Results Table", expanded=False):

@@ -212,15 +212,5 @@ div[data-testid="stExpander"] summary {
   .stat-value { font-size: 22px !important; }
 }
 
-/* Author credit — fixed bottom-right corner */
-.author-credit {
-  position: fixed; bottom: 14px; right: 18px; z-index: 9999;
-  background: rgba(255,255,255,.92); backdrop-filter: blur(6px);
-  border: 1px solid #dadce0; border-radius: 20px;
-  padding: 5px 14px; font-size: 13px; color: #5f6368;
-  font-family: 'DM Sans', sans-serif; font-weight: 500;
-  pointer-events: none;
-  box-shadow: 0 1px 4px rgba(60,64,67,.15);
-}
 </style>
 """
