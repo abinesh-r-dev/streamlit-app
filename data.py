@@ -23,7 +23,7 @@ def load_basin() -> pd.DataFrame:
                     77.1720,77.1710,77.1698,77.3305,77.3600],
         "geology": ["Granite","Alluvial","Feldspar","Quartz","Sedimentary",
                     "Monazite Sand","Ilmenite","Thorium Sand","Clay","Laterite"],
-        "monazite": [0.02,0.18,0.10,0.07,0.01,0.24,0.62,0.22,0.04,0.10],
+        "monazite": [0.02,0.18,0.01,0.07,0.01,0.24,0.62,0.22,0.04,0.10],
         "s3_imp":  [False,False,True,False,False,False,False,False,False,False],
         "k40":     [K40_DEFAULT]*10,
     })
